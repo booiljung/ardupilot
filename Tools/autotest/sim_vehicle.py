@@ -38,14 +38,19 @@ windowID = []
 autotest_dir = os.path.dirname(os.path.realpath(__file__))
 root_dir = os.path.realpath(os.path.join(autotest_dir, '../..'))
 
+print("DEBUG 1")
+
 try:
     from pymavlink import mavextra
 except ImportError:
     sys.path.append(os.path.join(root_dir, "modules/mavlink"))
     from pymavlink import mavextra
 
+print("DEBUG 2")
+
 os.environ["SIM_VEHICLE_SESSION"] = binascii.hexlify(os.urandom(8)).decode()
 
+print("DEBUG 3")
 
 class CompatError(Exception):
     """A custom exception class to hold state if we encounter the parse
@@ -54,6 +59,7 @@ class CompatError(Exception):
         Exception.__init__(self, error)
         self.opts = opts
         self.rargs = rargs
+        print("DEBUG 4")
 
 
 class CompatOptionParser(optparse.OptionParser):
@@ -65,6 +71,7 @@ class CompatOptionParser(optparse.OptionParser):
     class CustomFormatter(optparse.IndentedHelpFormatter):
         def __init__(self, *args, **kwargs):
             optparse.IndentedHelpFormatter.__init__(self, *args, **kwargs)
+	    print("DEBUG 5")
 
         # taken and modified from from optparse.py's format_option
         def format_option_preserve_nl(self, option):
@@ -105,19 +112,23 @@ class CompatOptionParser(optparse.OptionParser):
                                                     wline)])
             elif opts[-1] != "\n":
                 result.append("\n")
+            print("DEBUG 6")
             return "".join(result)
 
         def format_option(self, option):
             if str(option).find('frame') != -1:
                 return self.format_option_preserve_nl(option)
+            print("DEBUG 7")
             return optparse.IndentedHelpFormatter.format_option(self, option)
 
     def __init__(self, *args, **kwargs):
+	print("DEBUG 8")
         formatter = CompatOptionParser.CustomFormatter()
         optparse.OptionParser.__init__(self,
                                        *args,
                                        formatter=formatter,
                                        **kwargs)
+
 
     def error(self, error):
         """Override default error handler called by
@@ -128,6 +139,7 @@ class CompatOptionParser(optparse.OptionParser):
             raise CompatError(error, self.values, self.rargs)
 
         optparse.OptionParser.error(self, error)
+        print("DEBUG 9")
 
     def parse_args(self, args=None, values=None):
         '''Wrap parse_args so we can catch the exception raised upon
@@ -150,7 +162,9 @@ class CompatOptionParser(optparse.OptionParser):
             mavproxy_args = [str(e)[16:]]  # this trims "no such option" off
             mavproxy_args.extend(e.rargs)
             opts.ensure_value("mavproxy_args", " ".join(mavproxy_args))
+            print("DEBUG 10")
 
+        print("DEBUG 11")
         return opts, args
 
 
@@ -179,41 +193,50 @@ def cygwin_pidof(proc_name):
                 pid = int(line_split[1].strip())
             if pid not in pids:
                 pids.append(pid)
+    print("DEBUG 12")
     return pids
 
 
 def under_cygwin():
     """Return if Cygwin binary exist"""
+    print("DEBUG 13")
     return os.path.exists("/usr/bin/cygstart")
 
 
 def under_macos():
+    print("DEBUG 14")
     return sys.platform == 'darwin'
 
 
 def kill_tasks_cygwin(victims):
     """Shell out to ps -ea to find processes to kill"""
+    print("DEBUG 15")
     for victim in list(victims):
         pids = cygwin_pidof(victim)
 #        progress("pids for (%s): %s" %
 #                 (victim,",".join([ str(p) for p in pids])))
         for apid in pids:
             os.kill(apid, signal.SIGKILL)
+    print("DEBUG 15")
 
 
 def kill_tasks_macos():
+    print("DEBUG 17")
     for window in windowID:
         cmd = ("osascript -e \'tell application \"Terminal\" to close "
                "(window(get index of window id %s))\'" % window)
         os.system(cmd)
+        print("DEBUG 18")
 
 
 def kill_tasks_psutil(victims):
+    print("DEBUG 19")
     """Use the psutil module to kill tasks by name.  Sadly, this module is
     not available on Windows, but when it is we should be able to *just*
     use this routine"""
     import psutil
     for proc in psutil.process_iter():
+        print("DEBUG 20")
         pdict = proc.as_dict(attrs=['environ', 'status'])
         if pdict['status'] == psutil.STATUS_ZOMBIE:
             continue
@@ -223,8 +246,10 @@ def kill_tasks_psutil(victims):
 
 
 def kill_tasks_pkill(victims):
+    print("DEBUG 21")
     """Shell out to pkill(1) to kill processed by name"""
     for victim in victims:  # pkill takes a single pattern, so iterate
+        print("DEBUG 22")
         cmd = ["pkill", victim[:15]]  # pkill matches only first 15 characters
         run_cmd_blocking("pkill", cmd, quiet=True)
 
@@ -235,10 +260,12 @@ class BobException(Exception):
 
 
 def kill_tasks():
+    print("DEBUG 23")
     """Clean up stray processes by name.  This is a shotgun approach"""
     progress("Killing tasks")
 
     if cmd_opts.coverage:
+        print("DEBUG 24")
         import psutil
         for proc in psutil.process_iter(['pid', 'name', 'environ']):
             if proc.name() not in ["arducopter", "ardurover", "arduplane", "ardusub", "antennatracker"]:
@@ -297,20 +324,24 @@ def kill_tasks():
 
 
 def progress(text):
+    print("DEBUG 27")
     """Display sim_vehicle progress text"""
     print("SIM_VEHICLE: " + text)
 
 
 def wait_unlimited():
+    print("DEBUG 28")
     """Wait until signal received"""
     while True:
         time.sleep(600)
 
 
 vinfo = vehicleinfo.VehicleInfo()
+print("DEBUG 29")
 
 
 def do_build(opts, frame_options):
+    print("DEBUG 30")
     """Build sitl using waf"""
     progress("WAF build")
 
@@ -411,6 +442,7 @@ def do_build(opts, frame_options):
 
 
 def do_build_parameters(vehicle):
+    print("DEBUG 31")
     # build succeeded
     # now build parameters
     progress("Building fresh parameter descriptions")
@@ -425,6 +457,7 @@ def do_build_parameters(vehicle):
 
 
 def get_user_locations_path():
+    print("DEBUG 32")
     '''The user locations.txt file is located by default in
     $XDG_CONFIG_DIR/ardupilot/locations.txt. If $XDG_CONFIG_DIR is
     not defined, we look in $HOME/.config/ardupilot/locations.txt.  If
@@ -441,6 +474,7 @@ def get_user_locations_path():
 
 
 def find_offsets(instances, file_path):
+    print("DEBUG 33")
     offsets = {}
     swarminit_filepath = os.path.join(autotest_dir, "swarminit.txt")
     comment_regex = re.compile(r"\s*#.*")
@@ -468,6 +502,7 @@ def find_offsets(instances, file_path):
 
 
 def find_geocoder_location(locname):
+    print("DEBUG 34")
     '''find a location using geocoder and SRTM'''
     try:
         import geocoder
@@ -497,6 +532,7 @@ def find_geocoder_location(locname):
 
 
 def find_location_by_name(locname):
+    print("DEBUG 35")
     """Search locations.txt for locname, return GPS coords"""
     locations_userpath = os.environ.get('ARDUPILOT_LOCATIONS',
                                         get_user_locations_path())
@@ -523,6 +559,7 @@ def find_location_by_name(locname):
 
 
 def find_spawns(loc, offsets):
+    print("DEBUG 36")
     lat, lon, alt, heading = loc
     spawns = {}
     for k in offsets:
@@ -535,6 +572,7 @@ def find_spawns(loc, offsets):
 
 
 def progress_cmd(what, cmd):
+    print("DEBUG 37")
     """Print cmd in a way a user could cut-and-paste to get the same effect"""
     progress(what)
     shell_text = "%s" % (" ".join(['"%s"' % x for x in cmd]))
@@ -542,6 +580,7 @@ def progress_cmd(what, cmd):
 
 
 def run_cmd_blocking(what, cmd, quiet=False, check=False, **kw):
+    print("DEBUG 38")
     if not quiet:
         progress_cmd(what, cmd)
 
@@ -561,7 +600,7 @@ def run_cmd_blocking(what, cmd, quiet=False, check=False, **kw):
 
 
 def run_in_terminal_window(name, cmd, **kw):
-
+    print("DEBUG 39")
     """Execute the run_in_terminal_window.sh command for cmd"""
     global windowID
     runme = [os.path.join(autotest_dir, "run_in_terminal_window.sh"), name]
@@ -596,6 +635,7 @@ tracker_uarta = None  # blemish
 
 
 def start_antenna_tracker(opts):
+    print("DEBUG 40")
     """Compile and run the AntennaTracker, add tracker to mavproxy"""
 
     global tracker_uarta
@@ -627,6 +667,7 @@ def start_antenna_tracker(opts):
 
 
 def start_CAN_GPS(opts):
+    print("DEBUG 41")
     """Compile and run the sitl_periph_gps"""
 
     global can_uarta
@@ -639,6 +680,7 @@ def start_CAN_GPS(opts):
 
 
 def start_vehicle(binary, opts, stuff, spawns=None):
+    print("DEBUG 42")
     """Run the ArduPilot binary"""
 
     cmd_name = opts.vehicle
@@ -780,6 +822,7 @@ def start_vehicle(binary, opts, stuff, spawns=None):
 
 
 def start_mavproxy(opts, stuff):
+    print("DEBUG 43")
     """Run mavproxy"""
     # FIXME: would be nice to e.g. "mavproxy.mavproxy(....).run"
     # rather than shelling out
@@ -787,16 +830,20 @@ def start_mavproxy(opts, stuff):
     extra_cmd = ""
     cmd = []
     if under_cygwin():
+        print("DEBUG 43-1")
         cmd.append("/usr/bin/cygstart")
         cmd.append("-w")
         cmd.append("mavproxy.exe")
     else:
+        print("DEBUG 43-2")
         cmd.append("mavproxy.py")
 
     if opts.mcast:
+        print("DEBUG 43-3")
         cmd.extend(["--master", "mcast:"])
 
     for i in instances:
+        print("DEBUG 43-4")
         if not opts.no_extra_ports:
             ports = [p + 10 * i for p in [14550, 14551]]
             for port in ports:
@@ -816,6 +863,7 @@ def start_mavproxy(opts, stuff):
             cmd.extend(["--sitl", "127.0.0.1:" + str(5501 + 10 * i)])
 
     if opts.tracker:
+        print("DEBUG 43-5")
         cmd.extend(["--load-module", "tracker"])
         global tracker_uarta
         # tracker_uarta is set when we start the tracker...
@@ -825,14 +873,17 @@ def start_mavproxy(opts, stuff):
                       "tracker arm;" % (tracker_uarta,))
 
     if opts.mavlink_gimbal:
+        print("DEBUG 43-6")
         cmd.extend(["--load-module", "gimbal"])
 
     if "extra_mavlink_cmds" in stuff:
+        print("DEBUG 43-7")
         extra_cmd += " " + stuff["extra_mavlink_cmds"]
 
     # Parsing the arguments to pass to mavproxy, split args on space
     # and "=" signs and ignore those signs within quotation marks
     if opts.mavproxy_args:
+        print("DEBUG 43-8")
         # It would be great if this could be done with regex
         mavargs = opts.mavproxy_args.split(" ")
         # Find the arguments with '=' in them and split them up
@@ -866,27 +917,36 @@ def start_mavproxy(opts, stuff):
 
     # compatibility pass-through parameters (for those that don't want
     # to use -C :-)
+    print("DEBUG 43-9")
     for out in opts.out:
+        print("DEBUG 43-10")
         cmd.extend(['--out', out])
     if opts.map:
+        print("DEBUG 43-11")
         cmd.append('--map')
     if opts.console:
+        print("DEBUG 43-12")
         cmd.append('--console')
     if opts.aircraft is not None:
+        print("DEBUG 43-13")
         cmd.extend(['--aircraft', opts.aircraft])
     if opts.moddebug:
+        print("DEBUG 43-14")
         cmd.append('--moddebug=%u' % opts.moddebug)
 
     if opts.fresh_params:
+        print("DEBUG 43-15")
         # these were built earlier:
         path = os.path.join(os.getcwd(), "apm.pdef.xml")
         cmd.extend(['--load-module', 'param:{"xml-filepath":"%s"}' % path])
 
     if len(extra_cmd):
+        print("DEBUG 43-16")
         cmd.extend(['--cmd', extra_cmd])
 
     # add Tools/mavproxy_modules to PYTHONPATH in autotest so we can
     # find random MAVProxy helper modules like sitl_calibration
+    print("DEBUG 43-17")
     local_mp_modules_dir = os.path.abspath(
         os.path.join(__file__, '..', '..', 'mavproxy_modules'))
     env = dict(os.environ)
@@ -895,7 +955,9 @@ def start_mavproxy(opts, stuff):
     if old is not None:
         env['PYTHONPATH'] += os.path.pathsep + old
 
+    print("DEBUG 43-18", cmd, env)
     run_cmd_blocking("Run MavProxy", cmd, env=env)
+    print("DEBUG 43-19")
     progress("MAVProxy exited")
 
 
@@ -903,12 +965,15 @@ vehicle_options_string = '|'.join(vinfo.options.keys())
 
 
 def generate_frame_help():
+    print("DEBUG 44")
     ret = ""
     for vehicle in vinfo.options:
         frame_options = sorted(vinfo.options[vehicle]["frames"].keys())
         frame_options_string = '|'.join(frame_options)
         ret += "%s: %s\n" % (vehicle, frame_options_string)
     return ret
+
+print("DEBUG 45")
 
 
 # define and run parser
@@ -932,6 +997,8 @@ vehicle_choices.append("plane")  # should change to ArduPlane at some stage
 vehicle_choices.append("sub")  # should change to Sub at some stage
 vehicle_choices.append("blimp")  # should change to Blimp at some stage
 
+print("DEBUG 46")
+
 parser.add_option("-v", "--vehicle",
                   type='choice',
                   default=None,
@@ -950,6 +1017,8 @@ parser.add_option("-C", "--sim_vehicle_sh_compatible",
                   default=False,
                   help="be compatible with the way sim_vehicle.sh works; "
                   "make this the first option")
+
+print("DEBUG 47")
 
 group_build = optparse.OptionGroup(parser, "Build options")
 group_build.add_option("-N", "--no-rebuild",
@@ -1025,6 +1094,8 @@ group_build.add_option("", "--ubsan-abort",
                        dest="ubsan_abort",
                        help="compile sitl with undefined behaviour sanitiser and abort on error")
 parser.add_option_group(group_build)
+
+print("DEBUG 48")
 
 group_sim = optparse.OptionGroup(parser, "Simulation options")
 group_sim.add_option("-I", "--instance",
@@ -1231,6 +1302,8 @@ group_sim.add_option("", "--auto-sysid",
                      help="Set SYSID_THISMAV based upon instance number")
 parser.add_option_group(group_sim)
 
+print("DEBUG 49")
+
 
 # special-cased parameters for mavproxy, because some people's fingers
 # have long memories, and they don't want to use -C :-)
@@ -1262,6 +1335,8 @@ group.add_option("", "--no-rcin",
                  help="disable mavproxy rcin")
 parser.add_option_group(group)
 
+print("DEBUG 50")
+
 group_completion = optparse.OptionGroup(parser, "Completion helpers")
 group_completion.add_option("", "--list-vehicle",
                             action='store_true',
@@ -1274,6 +1349,8 @@ parser.add_option_group(group_completion)
 
 cmd_opts, cmd_args = parser.parse_args()
 
+print("DEBUG 51")
+
 if cmd_opts.list_vehicle:
     print(' '.join(vinfo.options.keys()))
     sys.exit(1)
@@ -1283,10 +1360,14 @@ if cmd_opts.list_frame:
     print(frame_options_string)
     sys.exit(1)
 
+print("DEBUG 52")
+
 # clean up processes at exit:
 atexit.register(kill_tasks)
 
 progress("Start")
+
+print("DEBUG 53")
 
 if cmd_opts.sim_vehicle_sh_compatible and cmd_opts.jobs is None:
     cmd_opts.jobs = 1
@@ -1326,10 +1407,14 @@ if cmd_opts.sysid and cmd_opts.auto_sysid:
     print("Cannot use auto-sysid together with sysid")
     sys.exit(1)
 
+print("DEBUG 54")
+
 # magically determine vehicle type (if required):
 if cmd_opts.vehicle is None:
     cwd = os.getcwd()
     cmd_opts.vehicle = os.path.basename(cwd)
+
+print("DEBUG 55")
 
 if cmd_opts.vehicle not in vinfo.options:
     # try in parent directories, useful for having config in subdirectories
@@ -1343,6 +1428,8 @@ if cmd_opts.vehicle not in vinfo.options:
             break
         cwd = os.path.dirname(cwd)
 
+print("DEBUG 56")
+
 # map from some vehicle aliases back to canonical names.  APMrover2
 # was the old name / directory name for Rover.
 vehicle_map = {
@@ -1355,10 +1442,15 @@ vehicle_map = {
     "sub": "ArduSub",  # will switch eventually
     "blimp" : "Blimp", # will switch eventually
 }
+
+print("DEBUG 57")
+
 if cmd_opts.vehicle in vehicle_map:
     progress("%s is now known as %s" %
              (cmd_opts.vehicle, vehicle_map[cmd_opts.vehicle]))
     cmd_opts.vehicle = vehicle_map[cmd_opts.vehicle]
+
+print("DEBUG 58")
 
 # try to validate vehicle
 if cmd_opts.vehicle not in vinfo.options:
@@ -1369,6 +1461,8 @@ You could also try changing directory to e.g. the ArduCopter subdirectory
 ''' % (cmd_opts.vehicle, vehicle_options_string))
     sys.exit(1)
 
+print("DEBUG 59")
+
 # determine frame options (e.g. build type might be "sitl")
 if cmd_opts.frame is None:
     cmd_opts.frame = vinfo.options[cmd_opts.vehicle]["default_frame"]
@@ -1377,10 +1471,14 @@ frame_infos = vinfo.options_for_frame(cmd_opts.frame,
                                       cmd_opts.vehicle,
                                       cmd_opts)
 
+print("DEBUG 60")
+
 vehicle_dir = os.path.realpath(os.path.join(root_dir, cmd_opts.vehicle))
 if not os.path.exists(vehicle_dir):
     print("vehicle directory (%s) does not exist" % (vehicle_dir,))
     sys.exit(1)
+
+print("DEBUG 61")
 
 if cmd_opts.instances is not None:
     instances = set()
@@ -1394,14 +1492,23 @@ if cmd_opts.instances is not None:
 else:
     instances = range(cmd_opts.instance, cmd_opts.instance + cmd_opts.count)
 
+
+print("DEBUG 62")
+
 if cmd_opts.instance == 0:
     kill_tasks()
+
+print("DEBUG 63")
 
 if cmd_opts.tracker:
     start_antenna_tracker(cmd_opts)
 
+print("DEBUG 64")
+
 if cmd_opts.can_gps:
     start_CAN_GPS(cmd_opts)
+
+print("DEBUG 65")
 
 if cmd_opts.custom_location:
     location = [(float)(x) for x in cmd_opts.custom_location.split(",")]
@@ -1412,6 +1519,9 @@ elif cmd_opts.location is not None:
 else:
     progress("Starting up at SITL location")
     location = None
+
+print("DEBUG 66")
+
 if cmd_opts.swarm is not None:
     offsets = find_offsets(instances, cmd_opts.swarm)
 elif cmd_opts.auto_offset_line is not None:
@@ -1427,10 +1537,15 @@ elif cmd_opts.auto_offset_line is not None:
         dist += metres
 else:
     offsets = {x: [0.0, 0.0, 0.0, None] for x in instances}
+
+print("DEBUG 67")
+
 if location is not None:
     spawns = find_spawns(location, offsets)
 else:
     spawns = None
+
+print("DEBUG 68")
 
 if cmd_opts.use_dir is not None:
     base_dir = os.path.realpath(cmd_opts.use_dir)
@@ -1442,6 +1557,9 @@ if cmd_opts.use_dir is not None:
     os.chdir(base_dir)
 else:
     base_dir = os.getcwd()
+
+print("DEBUG 69")
+
 instance_dir = []
 if len(instances) == 1:
     instance_dir.append(base_dir)
@@ -1455,6 +1573,8 @@ else:
                 raise
         finally:
             instance_dir.append(i_dir)
+
+print("DEBUG 70")
 
 if True:
     if not cmd_opts.no_rebuild:  # i.e. we should rebuild
@@ -1482,10 +1602,13 @@ if True:
                   frame_infos,
                   spawns=spawns)
 
+print("DEBUG 71")
 
 if cmd_opts.delay_start:
     progress("Sleeping for %f seconds" % (cmd_opts.delay_start,))
     time.sleep(float(cmd_opts.delay_start))
+
+print("DEBUG 72")
 
 tmp = None
 if cmd_opts.frame in ['scrimmage-plane', 'scrimmage-copter']:
@@ -1541,6 +1664,7 @@ if cmd_opts.frame in ['scrimmage-plane', 'scrimmage-copter']:
         fd.write(mission)
     run_in_terminal_window('SCRIMMAGE', ['scrimmage', tmp[1]])
 
+print("DEBUG 73")
 
 if cmd_opts.delay_start:
     progress("Sleeping for %f seconds" % (cmd_opts.delay_start,))
@@ -1555,5 +1679,7 @@ try:
         start_mavproxy(cmd_opts, frame_infos)
 except KeyboardInterrupt:
     progress("Keyboard Interrupt received ...")
+
+print("DEBUG 74")
 
 sys.exit(0)
